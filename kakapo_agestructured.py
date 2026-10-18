@@ -10,7 +10,6 @@ kakapo_required_survival.py imports from this file.
 
 import sys
 from pathlib import Path
-
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")          # save figures without opening a window
@@ -40,11 +39,11 @@ SCENARIOS = {
     "Ceiling": dict(Tm=6,  c=4.0, y=2, f=0.5, L=90, Ta=60),
 }
 
-# Plot settings (used by both scripts)
+# Plot settings (used by all three scripts)
 COLOURS = {"Floor": "#2a78d6", "Central": "#eb6834", "Ceiling": "#1baf7a"}
 INK, MUTED, GRID = "#1f1f1f", "#5f5f5f", "#e6e6e6"
 OBS_STYLE = dict(color=INK, lw=1.4, ls=(0, (5, 2.5)))   # observed r line
-OBS_BAND = "#d9d9d9"          # r_obs up to the 99% upper limit
+OBS_BAND = "#d9d9d9"          # 99% CI of r_obs
 MEASURED_COLOUR = "#f6cdd8"   # measured survival range
 FULL_WIDTH, SINGLE_WIDTH = 6.7, 6.0   # inches, so the fonts print at the right size
 
@@ -209,7 +208,7 @@ def save(fig, name):
     plt.close(fig)
 
 
-def figure1(r_obs, upper):
+def figure1(r_obs, lower, upper):
     """Fig 1: projections vs census (a), growth rates (b)."""
     years = np.arange(1995, 2027)
     rates = {name: growth_rate(p) for name, p in SCENARIOS.items()}
@@ -241,7 +240,7 @@ def figure1(r_obs, upper):
 
     # (b)
     names = list(SCENARIOS)
-    ax2.axhspan(r_obs, upper, color=OBS_BAND, alpha=0.7, lw=0)
+    ax2.axhspan(lower, upper, color=OBS_BAND, alpha=0.7, lw=0)
     ax2.axhline(r_obs, **OBS_STYLE, zorder=3)
     bars = ax2.bar(names, [rates[n] for n in names], width=0.6,
                    color=[COLOURS[n] for n in names], zorder=2)
@@ -265,20 +264,20 @@ def figure1(r_obs, upper):
                 Line2D([], [], ls="none", marker="o", ms=5, mfc="white", mec=INK,
                        label="Census, approximate (2016)"),
                 Line2D([], [], **OBS_STYLE, label=f"Observed r ({r_obs:.3f})"),
-                Patch(color=OBS_BAND, alpha=0.7, label=f"Up to 99% upper limit ({upper:.3f})")]
+                Patch(color=OBS_BAND, alpha=0.7, label=f"99% CI ({lower:.3f} to {upper:.3f})")]
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=3,
                handlelength=1.8, columnspacing=2.5)
 
     save(fig, "figure1_envelope.png")
 
 
-def figure4(results, r_obs, upper):
+def figure4(results, r_obs, lower, upper):
     """Fig 4: tornado plot of the sensitivity results."""
     r_central = growth_rate(SCENARIOS["Central"])
     order = sorted(results, key=lambda k: abs(results[k][1] - results[k][0]))
 
     fig, ax = plt.subplots(figsize=(SINGLE_WIDTH, 2.7))
-    ax.axvspan(r_obs, upper, color=OBS_BAND, alpha=0.7, lw=0)
+    ax.axvspan(lower, upper, color=OBS_BAND, alpha=0.7, lw=0)
     ax.axvline(r_obs, **OBS_STYLE)
     for i, key in enumerate(order):
         lo, hi = sorted(results[key])
@@ -291,11 +290,11 @@ def figure4(results, r_obs, upper):
     ax.set_yticklabels([SENSITIVITY_LABELS[k] for k in order])
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="y", visible=False)
-    ax.set_xlim(0.05, 0.17)
+    ax.set_xlim(0.03, 0.17)
     ax.set_ylim(-0.6, len(order) - 0.4)
     ax.set_xlabel("Growth rate r (yr$^{-1}$), φ = 1")
     handles = [Line2D([], [], **OBS_STYLE, label=f"Observed rate ({r_obs:.3f})"),
-               Patch(color=OBS_BAND, alpha=0.7, label=f"Up to 99% upper limit ({upper:.3f})"),
+               Patch(color=OBS_BAND, alpha=0.7, label=f"99% CI ({lower:.3f} to {upper:.3f})"),
                Line2D([], [], color=INK, lw=0.9, label=f"Central scenario ({r_central:.3f})")]
     ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3,
               handlelength=1.8, columnspacing=1.2)
@@ -306,7 +305,7 @@ def figure4(results, r_obs, upper):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")   # so φ prints on Windows
     r_obs, _, two_point, ci_99 = observed_growth_rate()
-    upper = round(ci_99[1], 3)
+    lower, upper = round(ci_99[0], 3), round(ci_99[1], 3)
     print("Section 2.2 - observed growth rate")
     print(f"  Least squares: r_obs = {r_obs:.4f} per yr "
           f"({100 * np.expm1(r_obs):.1f}% per yr, doubling {np.log(2) / r_obs:.1f} yr)")
@@ -335,6 +334,6 @@ if __name__ == "__main__":
     for key, (r_floor, r_ceiling) in results.items():
         print(f"  {SENSITIVITY_LABELS[key]:38s} {r_floor:.3f} -> {r_ceiling:.3f}")
 
-    figure1(r_obs, upper)
-    figure4(results, r_obs, upper)
+    figure1(r_obs, lower, upper)
+    figure4(results, r_obs, lower, upper)
     print(f"\nSaved figure1_envelope.png and figure4_sensitivity.png to {FIG_DIR}")

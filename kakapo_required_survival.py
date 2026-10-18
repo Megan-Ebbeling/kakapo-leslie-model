@@ -1,7 +1,7 @@
 """
 Required egg-to-chick survival phi*, i.e. the phi where r(phi) = r_obs.
 
-Finds phi* for each scenario (Table 4, Fig 2), over the 378-set parameter grid
+Finds phi* for each scenario and four estimates of r_obs (Table 4, Fig 2), over the 378-set parameter grid
 (Fig 3), and for different juvenile survival values (Fig 5).
 r goes up with phi, so there is at most one phi*. If r < r_obs even at
 phi = 1 there is no phi*.
@@ -231,7 +231,7 @@ def figure5(r_obs):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")   # so φ prints on Windows
     r_obs, _, two_point, ci_99 = observed_growth_rate()
-    estimates = [r_obs, two_point, round(ci_99[1], 3)]
+    estimates = [round(ci_99[0], 3), r_obs, two_point, round(ci_99[1], 3)]
 
     print(f"Measured range (Table 3): {fmt_range(*MEASURED_RANGE)} "
           f"(egg -> 150-day chick {EGG_TO_150_DAYS:.3f})\n")
@@ -243,12 +243,13 @@ if __name__ == "__main__":
         r1 = growth_rate(params)
         stars = [required_survival(params, e) for e in estimates]
         cells = " ".join(f"{'none':>11s}" if s is None else f"{s:11.2f}" for s in stars)
-        if stars[0] is None:
+        main = stars[1]                        # the least-squares estimate
+        if main is None:
             verdict = "-"
-        elif in_measured_range(stars[0]):
+        elif in_measured_range(main):
             verdict = "Yes"
         else:
-            verdict = "No (below)" if stars[0] < MEASURED_RANGE[0] else "No (above)"
+            verdict = "No (below)" if main < MEASURED_RANGE[0] else "No (above)"
         print(f"  {name:9s} {r1:9.3f} {np.log(2) / r1:9.1f} {cells}  {verdict}")
 
     central = SCENARIOS["Central"]
