@@ -1,18 +1,19 @@
 """
-Extra analyses for sections 2.7, 3.5 and 3.6.
+Extra analyses for sections 2.5, 2.6, 3.2, 3.3, 3.5, 3.6 and 4.3.
 
-1. Closed-form required survival (eq. 8). Growth depends on phi, c and y only
-   through R = phi*c/y, the surviving chicks per female per year, so the
-   Euler-Lotka equation can be solved for R* directly (a geometric series).
-   Checked against the bisection results.
-2. Required survival at the lower end of the 99% CI of r_obs.
+1. Closed-form required survival (eq. 8, section 3.6). Growth depends on phi,
+   c and y only through R = phi*c/y, the surviving chicks per female per year,
+   so the Euler-Lotka equation can be solved for R* directly (a geometric
+   series). Checked against the bisection results.
+2. Required survival at the lower end of the 99% CI of r_obs (sections 3.2, 3.3).
 3. Elasticity of lambda to fecundity, juvenile survival and adult survival,
-   plus net reproductive rate R0 and generation time.
+   plus net reproductive rate R0 and generation time (section 3.5).
 4. Starting age structure: phi needed to grow from 51 birds in 1995 to 325 in
-   2026 if the 20 females in 1995 were all of breeding age.
-5. Growth and doubling time of the central scenario for a few values of phi.
+   2026 if the 20 females in 1995 were all of breeding age (section 3.6).
+5. Growth and doubling time of the central scenario for a few values of phi
+   (section 4.3).
 
-Makes figure 6. Needs the other two scripts in the same folder.
+Makes figure 5. Needs the other two scripts in the same folder.
 """
 
 import itertools
@@ -116,7 +117,7 @@ def survival_to_reach_2026(params, adults_only):
 
 
 # ---------------- figure 6 ----------------
-def figure6(r_obs, ci_99, phi_stable, phi_adult):
+def figure5(r_obs, ci_99, phi_stable, phi_adult):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(FULL_WIDTH, 3.0),
                                    gridspec_kw={"wspace": 0.34})
 
@@ -171,7 +172,7 @@ def figure6(r_obs, ci_99, phi_stable, phi_adult):
                title="Central scenario", title_fontsize=7.5)
     panel_label(ax2, "b")
 
-    save(fig, "figure6_recruitment_and_start.png")
+    save(fig, "figure5_recruitment_and_start.png")
 
 
 if __name__ == "__main__":
@@ -180,7 +181,7 @@ if __name__ == "__main__":
     r_low = round(ci_99[0], 3)
     central = SCENARIOS["Central"]
 
-    print("1. Closed-form required survival (eq. 8)")
+    print("1. Closed-form required survival (eq. 8, section 3.6)")
     worst = 0.0
     for Tm, c, y, L in itertools.product(MATURITY, CLUTCH, INTERVAL, LIFESPAN):
         p = dict(Tm=Tm, c=c, y=y, f=0.5, L=L, Ta=BREEDING_SPAN)
@@ -198,19 +199,28 @@ if __name__ == "__main__":
     s = 1 - 1 / central["L"]
     q = s * np.exp(-r_obs)
     print(f"  q = s e^-r = {q:.4f}; each extra year before first breeding multiplies "
-          f"phi* by 1/q = {1 / q:.4f}; 1 - q^Ta = {1 - q**central['Ta']:.3f}")
+          f"phi* by 1/q = {1 / q:.4f} (x{q**-5:.2f} over 5 yr); 1 - q^Ta = {1 - q**central['Ta']:.3f}")
     print("  R* (chicks per female per year) by Tm and L, Ta = 50:")
+    R_grid = []
     for Tm in MATURITY:
         row = [required_recruitment(Tm, L, BREEDING_SPAN, 0.5, r_obs) for L in LIFESPAN]
+        R_grid += row
         print(f"    Tm = {Tm:2d}: " + "  ".join(f"L={L}: {R:.3f}" for L, R in zip(LIFESPAN, row)))
+    egg_rates = [c / y for c in CLUTCH for y in INTERVAL]
+    print(f"  {len(R_grid)} values of R*, {fmt_range(min(R_grid), max(R_grid))}, "
+          f"factor {max(R_grid) / min(R_grid):.1f}; c/y varies by a factor of "
+          f"{max(egg_rates) / min(egg_rates):.0f}")
     print(f"  2019: {CHICKS_2019}/{MATURE_FEMALES_2019} = {CHICKS_2019 / MATURE_FEMALES_2019:.2f}"
           f" chicks per mature female; {CHICKS_2019}/{NESTING_FEMALES_2019} = "
           f"{CHICKS_2019 / NESTING_FEMALES_2019:.2f} per nesting female; "
           f"{EGGS_2019}/{NESTING_FEMALES_2019} = {EGGS_2019 / NESTING_FEMALES_2019:.1f} eggs per nesting female")
+    R_central = required_recruitment(central["Tm"], central["L"], central["Ta"], central["f"], r_obs)
     for y in (2, 3, 4):
-        print(f"    spread over {y} yr: {CHICKS_2019 / MATURE_FEMALES_2019 / y:.3f} chicks/female/yr")
+        per_year = CHICKS_2019 / MATURE_FEMALES_2019 / y
+        print(f"    spread over {y} yr: {per_year:.3f} chicks/female/yr "
+              f"({per_year / R_central:.2f} x central R*)")
 
-    print(f"\n2. Lower end of the 99% CI, r = {r_low:.3f}")
+    print(f"\n2. Lower end of the 99% CI, r = {r_low:.3f} (sections 3.2, 3.3)")
     for name, p in SCENARIOS.items():
         ps = required_survival(p, r_low)
         print(f"  {name:8s} phi* = {ps:.2f}")
@@ -230,7 +240,7 @@ if __name__ == "__main__":
     print(f"  Floor phi* at lower end {p_floor_low:.2f} (inside range: "
           f"{MEASURED_RANGE[0] <= p_floor_low <= MEASURED_RANGE[1]})")
 
-    print("\n3. Elasticity of lambda at phi*")
+    print("\n3. Elasticity of lambda at phi* (section 3.5)")
     for name in ("Central", "Ceiling"):
         p = SCENARIOS[name]
         phi = required_survival(p, r_obs)
@@ -238,13 +248,15 @@ if __name__ == "__main__":
         R0 = net_reproductive_rate(p, phi)
         print(f"  {name:8s} phi* = {phi:.3f}: lambda = {lam:.4f}; fecundity {fec:.3f}, "
               f"juvenile survival {juv:.3f}, adult survival {adult:.3f} (sum {fec + juv + adult:.3f})")
+        print(f"           all survival / fecundity = {(juv + adult) / fec:.1f}; "
+              f"each juvenile rate {juv / p['Tm']:.3f}")
         print(f"           generation time 1/E_F = {T:.1f} yr; R0 = {R0:.2f}; ln(R0)/r = "
               f"{np.log(R0) / np.log(lam):.1f} yr")
     p = SCENARIOS["Floor"]
     lam, fec, juv, adult, T = elasticities(p, 1.0)
     print(f"  Floor at phi = 1: fecundity {fec:.3f}, juvenile {juv:.3f}, adult {adult:.3f}, T = {T:.1f}")
 
-    print("\n4. Starting age structure (central scenario), phi to reach 325 in 2026")
+    print("\n4. Starting age structure (central scenario), phi to reach 325 in 2026 (section 3.6)")
     phi_stable = survival_to_reach_2026(central, adults_only=False)
     phi_adult = survival_to_reach_2026(central, adults_only=True)
     w_stable = start_vector(central, phi_stable, False)
@@ -260,11 +272,11 @@ if __name__ == "__main__":
     r_long = growth_rate(central, phi=phi_adult)
     print(f"  Long-run r at phi = {phi_adult:.3f}: {r_long:.4f}")
 
-    print("\n5. Central scenario growth for selected phi")
-    for phi in (MEASURED_RANGE[0], EGG_TO := 72 / 252, required_survival(central, r_obs),
+    print("\n5. Central scenario growth for selected phi (section 4.3)")
+    for phi in (MEASURED_RANGE[0], CHICKS_2019 / EGGS_2019, required_survival(central, r_obs),
                 MEASURED_RANGE[1], 0.5, 0.75):
         r = growth_rate(central, phi=phi)
         print(f"  phi = {phi:.3f}: r = {r:.4f}, doubling {np.log(2) / r:.1f} yr")
 
-    figure6(r_obs, ci_99, phi_stable, phi_adult)
-    print("\nSaved figure6_recruitment_and_start.png")
+    figure5(r_obs, ci_99, phi_stable, phi_adult)
+    print("\nSaved figure5_recruitment_and_start.png")

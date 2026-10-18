@@ -2,7 +2,7 @@
 Required egg-to-chick survival phi*, i.e. the phi where r(phi) = r_obs.
 
 Finds phi* for each scenario and four estimates of r_obs (Table 4, Fig 2), over the 378-set parameter grid
-(Fig 3), and for different juvenile survival values (Fig 5).
+(Fig 3), and for different juvenile survival values (Fig 6).
 r goes up with phi, so there is at most one phi*. If r < r_obs even at
 phi = 1 there is no phi*.
 
@@ -192,8 +192,8 @@ def figure3(rows, r_obs):
     save(fig, "figure3_required_survival.png")
 
 
-def figure5(r_obs):
-    """Fig 5: central phi* against juvenile survival."""
+def figure6(r_obs):
+    """Fig 6: central phi* against juvenile survival."""
     central = SCENARIOS["Central"]
     s_adult = 1 - 1 / central["L"]
     s_min = lowest_juvenile_survival(central, r_obs)
@@ -225,7 +225,7 @@ def figure5(r_obs):
     ax.set_ylim(0, 1)
     ax.set_xlabel(f"Juvenile survival (yr$^{{-1}}$), ages 0 to {central['Tm'] - 1} yr")
     ax.set_ylabel("Required egg-to-chick survival φ*")
-    save(fig, "figure5_juvenile_survival.png")
+    save(fig, "figure6_juvenile_survival.png")
 
 
 if __name__ == "__main__":
@@ -268,16 +268,24 @@ if __name__ == "__main__":
         p = required_survival(dict(Tm=Tm, c=MAX_CLUTCH, y=3, f=0.5, L=75, Ta=BREEDING_SPAN), r_obs)
         print(f"  Clutch of {MAX_CLUTCH}, first breeding at {Tm:2d} yr (y = 3, L = 75): phi* = {p:.2f}")
 
-    print("\nDiscussion - central scenario with a separate juvenile survival")
+    print("\nSection 3.5 - central scenario with a separate juvenile survival")
     print(f"  Same as adults ({1 - 1 / central['L']:.3f}): phi* = {required_survival(central, r_obs):.2f}")
     for s in JUVENILE_SURVIVAL:
         p = required_survival(central, r_obs, s_juv=s)
         print(f"  Juvenile survival {s:.2f}: phi* = {'none' if p is None else f'{p:.2f}'}")
     print(f"  Below juvenile survival {lowest_juvenile_survival(central, r_obs):.3f} "
           f"no phi* <= 1 exists")
+    low, high = lowest_juvenile_survival(central, r_obs), 1 - 1 / central["L"]
+    for _ in range(50):                        # juvenile survival where phi* = top of range
+        mid = (low + high) / 2
+        if required_survival(central, r_obs, s_juv=mid) > MEASURED_RANGE[1]:
+            low = mid
+        else:
+            high = mid
+    print(f"  phi* stays inside the measured range for juvenile survival >= {high:.3f}")
 
     figure2(r_obs)
     figure3(rows, r_obs)
-    figure5(r_obs)
+    figure6(r_obs)
     print(f"\nSaved figure2_growth_vs_survival.png, figure3_required_survival.png and "
-          f"figure5_juvenile_survival.png to {FIG_DIR}")
+          f"figure6_juvenile_survival.png to {FIG_DIR}")

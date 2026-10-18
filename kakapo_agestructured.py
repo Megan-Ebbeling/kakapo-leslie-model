@@ -327,7 +327,15 @@ if __name__ == "__main__":
         print(f"  {name:8s} r = {r:.4f} per yr, doubling {np.log(2) / r:.1f} yr"
               f"   (eigenvalue check: {r_eig:.4f})")
     position = (r_obs - rates["Floor"]) / (rates["Ceiling"] - rates["Floor"])
-    print(f"  Observed rate is {100 * position:.0f}% of the way from floor to ceiling\n")
+    print(f"  Observed rate is {100 * position:.0f}% of the way from floor to ceiling")
+    floor_curve = project(SCENARIOS["Floor"], np.arange(1995, 2027))[YEARS - 1995]
+    print("  Census above the floor projection: "
+          + ", ".join(f"{y} {100 * (n / p - 1):.0f}%"
+                      for y, n, p in zip(YEARS[1:], COUNTS[1:], floor_curve[1:])))
+    for name, r in rates.items():
+        inside = ci_99[0] <= r <= ci_99[1]
+        print(f"  {name:8s} r inside the 99% CI of r_obs: {inside}")
+    print()
 
     results = sensitivity()
     print("Section 3.4 - sensitivity (others central, phi = 1)")
